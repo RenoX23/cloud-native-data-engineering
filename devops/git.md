@@ -19,7 +19,7 @@ Git is now the industry standard for:
 * Cloud Infrastructure
 * Open Source Development
 
----
+
 
 # Why Git Exists
 
@@ -40,7 +40,7 @@ Git solved this by introducing:
 * Rollbacks
 * Distributed workflows
 
----
+
 
 # Why Git Matters in Data Engineering
 
@@ -68,7 +68,7 @@ Git is heavily used for:
 
 If you cannot use Git properly, you are not production-ready.
 
----
+
 
 # Core Git Concepts
 
@@ -80,7 +80,7 @@ A project tracked by Git.
 git init
 ```
 
----
+
 
 ## Commit
 
@@ -94,7 +94,6 @@ Think of commits as:
 
 > Save points with history.
 
----
 
 ## Branch
 
@@ -111,7 +110,7 @@ Used for:
 * Experiments
 * Parallel development
 
----
+
 
 ## Remote Repository
 
@@ -123,7 +122,7 @@ Examples:
 * GitLab
 * Bitbucket
 
----
+
 
 # Git Architecture
 
@@ -153,7 +152,6 @@ git push
 
 This is the foundation of all modern engineering workflows.
 
----
 
 # Essential Git Commands
 
@@ -163,7 +161,7 @@ This is the foundation of all modern engineering workflows.
 git init
 ```
 
----
+
 
 # Clone Repository
 
@@ -171,7 +169,7 @@ git init
 git clone <repository-url>
 ```
 
----
+
 
 # Check Status
 
