@@ -1,764 +1,300 @@
-# SQL Joins
+# Joins
 
-# Introduction
+## Core Concept
 
-SQL Joins are used to combine data from multiple tables based on related columns.
-
-Joins are one of the most important SQL concepts in:
-- Data Engineering
-- Data Analytics
-- Data Warehousing
-- ETL Pipelines
-- Reporting Systems
-
-Most real-world datasets are normalized across multiple tables, so joins are required constantly.
+A join combines rows from two or more tables based on a related column. The type of join controls what happens to rows that **don't match** the join condition — that's the only real decision you're making every time.
 
 ---
 
-# Why Joins Matter
+## Visual Map of All Join Types
 
-Example:
+```
+Table A (Customers)     Table B (Orders)
+┌────────────┐          ┌────────────┐
+│ 1 Arjun    │──────────│ order 1    │  INNER: only matched rows
+│ 2 Priya    │──────────│ order 6    │
+│ ...        │          │ ...        │
+│ 18 Siddharth│         │            │  LEFT:  A rows with no match → NULLs
+│ 19 Divya   │         │            │
+│ 20 Manish  │         │            │
+└────────────┘          └────────────┘
 
-You may have:
-- employee details in one table
-- department details in another
-- salary information elsewhere
-
-Joins allow combining them into a meaningful dataset.
-
-Without joins, relational databases lose most of their power.
-
----
-
-# Sample Tables
-
-We will use two tables throughout this document.
-
----
-
-# employees Table
-
-| emp_id | name | department_id |
-|---|---|---|
-| 101 | John | 1 |
-| 102 | Alice | 2 |
-| 103 | Bob | 1 |
-| 104 | David | 3 |
-| 105 | Emma | NULL |
+INNER JOIN  → only rows that match in BOTH tables
+LEFT JOIN   → all of A + matched B (unmatched B = NULL)
+RIGHT JOIN  → all of B + matched A (unmatched A = NULL)
+FULL OUTER  → all of A + all of B (unmatched sides = NULL)
+CROSS JOIN  → every row in A × every row in B (Cartesian product)
+SELF JOIN   → table joined to itself
+```
 
 ---
 
-# departments Table
+## TechMart Data Facts (for join demos)
 
-| department_id | department_name |
+| Scenario | Who |
 |---|---|
-| 1 | Engineering |
-| 2 | HR |
-| 3 | Finance |
-| 4 | Marketing |
+| Customers with NO orders | Siddharth (18), Divya (19), Manish (20) |
+| Products with NO sales | Smart Watch (4), Gaming Headset (5) |
+| Cancelled/returned orders | Orders 8, 9, 37 |
+| Customers in same city | Arjun, Sneha, Meera, Manish → Bangalore |
+| Two sellers in same city | None — each seller city is unique |
 
 ---
 
-# Types of SQL Joins
+## 1. INNER JOIN
 
-| Join Type | Purpose |
-|---|---|
-| INNER JOIN | Matching rows only |
-| LEFT JOIN | All left table rows + matches |
-| RIGHT JOIN | All right table rows + matches |
-| FULL OUTER JOIN | All rows from both tables |
-| CROSS JOIN | Cartesian product |
-| SELF JOIN | Join table with itself |
+Returns only rows where the join condition matches in **both** tables. Non-matching rows on either side are excluded.
 
----
-
-# INNER JOIN
-
-Returns only matching rows from both tables.
-
----
-
-# Syntax
-
+**Syntax:**
 ```sql
 SELECT columns
-FROM table1
-INNER JOIN table2
-ON table1.column = table2.column;
+FROM table_a
+INNER JOIN table_b ON table_a.key = table_b.key;
 ```
 
----
+**Result in TechMart:** 17 customers (excludes Siddharth, Divya, Manish who have no orders).
 
-# Example
-
-```sql
-SELECT
-    e.emp_id,
-    e.name,
-    d.department_name
-FROM employees e
-INNER JOIN departments d
-ON e.department_id = d.department_id;
-```
+**Use when:** You only care about records that exist on both sides. Most common join in analytics.
 
 ---
 
-# Output
+## 2. LEFT JOIN (LEFT OUTER JOIN)
 
-| emp_id | name | department_name |
-|---|---|---|
-| 101 | John | Engineering |
-| 102 | Alice | HR |
-| 103 | Bob | Engineering |
-| 104 | David | Finance |
+Returns **all rows from the left table** + matched rows from right. Unmatched right-side columns return NULL.
 
----
-
-# Explanation
-
-- SQL matches rows where:
-
-```text
-employees.department_id = departments.department_id
-```
-
-- Emma is excluded because:
-
-```text
-department_id = NULL
-```
-
-- Marketing is excluded because no employee belongs to it.
-
----
-
-# LEFT JOIN
-
-Returns:
-- all rows from LEFT table
-- matching rows from RIGHT table
-
-If no match exists:
-- NULL values appear
-
----
-
-# Syntax
-
+**Syntax:**
 ```sql
 SELECT columns
-FROM table1
-LEFT JOIN table2
-ON table1.column = table2.column;
+FROM table_a
+LEFT JOIN table_b ON table_a.key = table_b.key;
 ```
+
+**Result in TechMart:** 20 customers returned — Siddharth, Divya, Manish appear with NULL order columns.
+
+**Use when:**
+- Finding unregistered/inactive records (customers with no orders)
+- Keeping source records even if dimension lookup fails
+- Building reports that should show all entities regardless of activity
 
 ---
 
-# Example
+## 3. RIGHT JOIN (RIGHT OUTER JOIN)
+
+Returns **all rows from the right table** + matched rows from left. Logically identical to LEFT JOIN with tables swapped — most engineers prefer LEFT JOIN for readability.
+
+**Syntax:**
+```sql
+SELECT columns
+FROM table_a
+RIGHT JOIN table_b ON table_a.key = table_b.key;
+```
+
+**Result in TechMart:** All products returned — Smart Watch and Gaming Headset appear with NULL order columns.
+
+**Use when:** You want to preserve all rows from the right table. Rarely used; rewrite as LEFT JOIN by swapping table order instead.
+
+---
+
+## 4. FULL OUTER JOIN
+
+Returns **all rows from both tables**. Unmatched rows on either side get NULLs on the opposite side.
+
+**Syntax:**
+```sql
+SELECT columns
+FROM table_a
+FULL OUTER JOIN table_b ON table_a.key = table_b.key;
+```
+
+**Use when:**
+- Data reconciliation between two sources
+- Finding records that exist in A but not B, and vice versa, in one query
+- Comparing two datasets for discrepancies (pipeline validation)
+
+> ⚠️ Not supported in some older MySQL versions. Works in PostgreSQL, Spark, BigQuery, Snowflake.
+
+---
+
+## 5. CROSS JOIN
+
+Returns the **Cartesian product** — every row in A paired with every row in B. No join condition.
+
+**Syntax:**
+```sql
+SELECT columns
+FROM table_a
+CROSS JOIN table_b;
+```
+
+**Volume warning:** 20 customers × 6 categories = 120 rows. 1000 × 1000 = 1,000,000 rows.
+
+**Use when:**
+- Generating all possible combinations (product × region matrix, date × metric grid)
+- Creating a date spine (cross join with a calendar table)
+- Seeding test data
+
+---
+
+## 6. SELF JOIN
+
+A table joined to **itself** using an alias. Used when rows within the same table are related to each other.
+
+**Syntax:**
+```sql
+SELECT a.column, b.column
+FROM table_a a
+JOIN table_a b ON a.key = b.related_key;
+```
+
+**Use when:**
+- Hierarchical data (employee → manager, category → parent_category)
+- Finding pairs within a dataset (customers in same city)
+- Sequential event comparison without LAG (though LAG is usually cleaner)
+
+---
+
+## 7. Anti-Join (NOT IN / NOT EXISTS / LEFT JOIN WHERE NULL)
+
+Finds rows in table A that have **no match** in table B. Three ways to write it — each with trade-offs.
+
+### Method 1: LEFT JOIN WHERE NULL (fastest in most engines)
+```sql
+SELECT a.*
+FROM table_a a
+LEFT JOIN table_b b ON a.key = b.key
+WHERE b.key IS NULL;
+```
+
+### Method 2: NOT EXISTS (readable, handles NULLs safely)
+```sql
+SELECT a.*
+FROM table_a a
+WHERE NOT EXISTS (
+    SELECT 1 FROM table_b b WHERE b.key = a.key
+);
+```
+
+### Method 3: NOT IN (⚠️ dangerous with NULLs)
+```sql
+SELECT * FROM table_a
+WHERE key NOT IN (SELECT key FROM table_b);
+-- If table_b.key has ANY NULL, this returns 0 rows — silent bug!
+```
+
+**Rule:** Prefer `LEFT JOIN WHERE NULL` or `NOT EXISTS`. Never use `NOT IN` on a column that might have NULLs.
+
+---
+
+## 8. Multi-Table Joins
+
+Chaining multiple joins. The query optimizer builds a join tree — order matters for performance.
 
 ```sql
+-- Full purchase trail: 6 tables
 SELECT
-    e.name,
-    d.department_name
-FROM employees e
-LEFT JOIN departments d
-ON e.department_id = d.department_id;
+    c.name,
+    o.order_date,
+    p.product_name,
+    cat.category_name,
+    s.seller_name,
+    oi.quantity,
+    oi.unit_price
+FROM customers c
+JOIN orders o        ON c.customer_id  = o.customer_id
+JOIN order_items oi  ON o.order_id     = oi.order_id
+JOIN products p      ON oi.product_id  = p.product_id
+JOIN categories cat  ON p.category_id  = cat.category_id
+JOIN sellers s       ON p.seller_id    = s.seller_id;
 ```
+
+**Performance tip:** Filter early. Apply WHERE on large tables before the join engine processes them.
 
 ---
 
-# Output
+## 9. Join Performance Rules
 
-| name | department_name |
+| Rule | Reason |
 |---|---|
-| John | Engineering |
-| Alice | HR |
-| Bob | Engineering |
-| David | Finance |
-| Emma | NULL |
+| Index the join column on the larger table | Turns O(n²) nested loop into O(n log n) |
+| Filter before joining (WHERE or subquery) | Reduces rows entering the join |
+| Put the smaller table on the left in INNER JOIN | Some engines use left table as the probe side |
+| Avoid functions on join columns | `ON YEAR(a.date) = YEAR(b.date)` kills index usage |
+| Use EXPLAIN / EXPLAIN ANALYZE | Verify the planner is using your index |
 
 ---
 
-# Key Insight
+## 10. System-Specific Notes
 
-LEFT JOIN preserves all rows from:
-```text
-LEFT TABLE
-```
-
-Even if matches do not exist.
-
----
-
-# RIGHT JOIN
-
-Opposite of LEFT JOIN.
-
-Returns:
-- all rows from RIGHT table
-- matching rows from LEFT table
-
----
-
-# Example
-
-```sql
-SELECT
-    e.name,
-    d.department_name
-FROM employees e
-RIGHT JOIN departments d
-ON e.department_id = d.department_id;
-```
-
----
-
-# Output
-
-| name | department_name |
+| System | Notes |
 |---|---|
-| John | Engineering |
-| Bob | Engineering |
-| Alice | HR |
-| David | Finance |
-| NULL | Marketing |
+| **PostgreSQL** | Hash join, merge join, nested loop — optimizer chooses. Use `EXPLAIN ANALYZE` to see which. |
+| **Spark SQL** | Broadcast join for small tables (`BROADCAST(small_table)` hint). Large joins → shuffle join. |
+| **BigQuery** | Broadcast join automatic for tables < 1GB. Avoid joining two large tables without filters. |
+| **Snowflake** | Micro-partition pruning reduces scan. Cluster keys help range joins on dates. |
+| **Redshift** | Distribution key matters — co-locate joined tables on the same node to avoid redistribution. |
 
 ---
 
-# Explanation
+## 11. Join Type Decision Tree
 
-Marketing appears even though:
-- no employee belongs to it
+```
+Do you want rows from BOTH tables (matched only)?
+  └── YES → INNER JOIN
 
----
+Do you want ALL rows from one side + matches from other?
+  ├── Keep ALL from left side → LEFT JOIN
+  └── Keep ALL from right side → RIGHT JOIN (or swap + LEFT JOIN)
 
-# FULL OUTER JOIN
+Do you want ALL rows from BOTH sides?
+  └── FULL OUTER JOIN
 
-Returns:
-- all rows from both tables
-- matched where possible
-- NULL where no match exists
+Are rows in the same table related to each other?
+  └── SELF JOIN
 
----
+Do you want every possible combination?
+  └── CROSS JOIN
 
-# Example
-
-```sql
-SELECT
-    e.name,
-    d.department_name
-FROM employees e
-FULL OUTER JOIN departments d
-ON e.department_id = d.department_id;
+Do you want rows in A that DON'T exist in B?
+  └── Anti-join (LEFT JOIN WHERE NULL / NOT EXISTS)
 ```
 
 ---
 
-# Output
+## 12. Interview Questions
 
-| name | department_name |
-|---|---|
-| John | Engineering |
-| Alice | HR |
-| Bob | Engineering |
-| David | Finance |
-| Emma | NULL |
-| NULL | Marketing |
+**Q1. What is the difference between INNER JOIN and LEFT JOIN?**
+INNER JOIN returns only rows where there is a match on both sides. LEFT JOIN returns all rows from the left table — if there's no match on the right side, those columns are NULL.
 
----
+**Q2. When would you use FULL OUTER JOIN in a data pipeline?**
+When reconciling two data sources — for example, comparing records from a source database against a warehouse to find rows that exist in one but not the other. Common in data quality checks and pipeline validation.
 
-# CROSS JOIN
+**Q3. What's the problem with NOT IN when the subquery column has NULLs?**
+SQL uses three-valued logic (TRUE, FALSE, UNKNOWN). `value NOT IN (1, 2, NULL)` evaluates as UNKNOWN for any value — returning 0 rows silently. Always use NOT EXISTS or LEFT JOIN WHERE NULL instead.
 
-Creates Cartesian Product.
+**Q4. How does a SELF JOIN work? Give a real example.**
+A table is aliased twice and joined to itself. Example: finding all pairs of customers from the same city — `JOIN customers b ON a.city = b.city AND a.customer_id < b.customer_id`.
 
-Every row from table1 combines with every row from table2.
+**Q5. What is a Cartesian product and when is CROSS JOIN dangerous?**
+Every row in table A is paired with every row in table B. Dangerous when both tables are large — 1M rows × 1M rows = 1 trillion row output. Use only for intentional combination generation.
 
----
+**Q6. What is the difference between LEFT JOIN and LEFT ANTI JOIN?**
+LEFT JOIN returns all left rows (matched + unmatched). Left anti-join (LEFT JOIN WHERE right_key IS NULL) returns only unmatched left rows — rows in A with no corresponding row in B.
 
-# Formula
+**Q7. In a DE context, when would you use a CROSS JOIN?**
+Creating a date spine — CROSS JOIN a calendar table with a list of metrics or dimensions to ensure every date × metric combination exists in the output, even if there's no data for that day.
 
-```text
-Rows Returned =
-(table1 rows) × (table2 rows)
-```
+**Q8. How do you optimize a slow join query?**
+Check EXPLAIN output for sequential scans on join columns → add an index. Filter rows before the join using a subquery or CTE. For distributed engines, ensure the join key is the distribution key to avoid data shuffle.
 
----
+**Q9. Can you join on multiple columns?**
+Yes: `ON a.order_id = b.order_id AND a.product_id = b.product_id`. Composite indexes on both columns improve performance in this case.
 
-# Example
-
-```sql
-SELECT
-    e.name,
-    d.department_name
-FROM employees e
-CROSS JOIN departments d;
-```
+**Q10. Why do most engineers prefer LEFT JOIN over RIGHT JOIN?**
+Readability. The "primary" or "driving" table is always on the left — easier to reason about which table preserves all rows. RIGHT JOIN is logically equivalent to swapping table positions and using LEFT JOIN.
 
 ---
 
-# If:
-
-- employees = 5 rows
-- departments = 4 rows
-
-Result:
-```text
-5 × 4 = 20 rows
-```
-
----
-
-# Use Cases
-
-Rarely used directly.
-
-Useful for:
-- combinations
-- matrix generation
-- calendar tables
-- testing datasets
-
----
-
-# SELF JOIN
-
-A table joined with itself.
-
-Useful for:
-- hierarchical relationships
-- manager-employee mapping
-- organizational structures
-
----
-
-# Example Table
-
-| emp_id | employee | manager_id |
-|---|---|---|
-| 1 | John | NULL |
-| 2 | Alice | 1 |
-| 3 | Bob | 1 |
-
----
-
-# Query
-
-```sql
-SELECT
-    e.employee AS employee_name,
-    m.employee AS manager_name
-FROM employees e
-LEFT JOIN employees m
-ON e.manager_id = m.emp_id;
-```
-
----
-
-# Output
-
-| employee_name | manager_name |
-|---|---|
-| John | NULL |
-| Alice | John |
-| Bob | John |
-
----
-
-# Visual Understanding of Joins
-
----
-
-# INNER JOIN
-
-```text
-Only overlapping data
-```
-
----
-
-# LEFT JOIN
-
-```text
-All LEFT + matching RIGHT
-```
-
----
-
-# RIGHT JOIN
-
-```text
-All RIGHT + matching LEFT
-```
-
----
-
-# FULL OUTER JOIN
-
-```text
-Everything from both sides
-```
-
----
-
-# Join Conditions
-
-The `ON` clause defines matching logic.
-
----
-
-# Example
-
-```sql
-ON employees.department_id = departments.department_id
-```
-
----
-
-# Multiple Join Conditions
-
-```sql
-SELECT *
-FROM orders o
-JOIN customers c
-ON o.customer_id = c.customer_id
-AND o.country = c.country;
-```
-
----
-
-# Joining Multiple Tables
-
-Real-world queries often involve many tables.
-
----
-
-# Example
-
-```sql
-SELECT
-    o.order_id,
-    c.customer_name,
-    p.product_name
-FROM orders o
-JOIN customers c
-ON o.customer_id = c.customer_id
-JOIN products p
-ON o.product_id = p.product_id;
-```
-
----
-
-# Aliases
-
-Aliases improve readability.
-
----
-
-# Without Alias
-
-```sql
-SELECT employees.name
-FROM employees;
-```
-
----
-
-# With Alias
-
-```sql
-SELECT e.name
-FROM employees e;
-```
-
-Industry standard practice.
-
----
-
-# NULL Behavior in Joins
-
-NULL does NOT equal NULL.
-
-This is critical.
-
----
-
-# Example
-
-```sql
-NULL = NULL
-```
-
-Returns:
-```text
-UNKNOWN
-```
-
-Not TRUE.
-
----
-
-# Therefore
-
-Rows with NULL values may not match during joins.
-
----
-
-# Common Join Mistakes
-
----
-
-# 1. Missing Join Condition
-
-Bad query:
-
-```sql
-SELECT *
-FROM employees, departments;
-```
-
-This creates accidental Cartesian product.
-
-Potentially catastrophic in production.
-
----
-
-# 2. Joining Wrong Columns
-
-Bad joins create:
-- duplicate rows
-- incorrect aggregations
-- inflated metrics
-
-Always validate relationships.
-
----
-
-# 3. Using INNER JOIN Instead of LEFT JOIN
-
-Can accidentally lose data.
-
-Example:
-- customers without orders disappear
-
-Very common analytics mistake.
-
----
-
-# Join Order Execution
-
-SQL execution typically:
-
-```text
-FROM
-JOIN
-ON
-WHERE
-GROUP BY
-HAVING
-SELECT
-ORDER BY
-LIMIT
-```
-
-Understanding execution order helps debugging.
-
----
-
-# Performance Considerations
-
-Joins are expensive operations at scale.
-
-Especially:
-- large tables
-- distributed systems
-- Spark joins
-- warehouse queries
-
----
-
-# Factors Affecting Join Performance
-
-| Factor | Impact |
-|---|---|
-| Indexes | Faster lookups |
-| Data size | Larger joins slower |
-| Skewed data | Uneven processing |
-| Join type | Some joins heavier |
-| Partitioning | Better scalability |
-
----
-
-# Indexing for Joins
-
-Joining indexed columns improves performance significantly.
-
----
-
-# Example
-
-```sql
-CREATE INDEX idx_department
-ON employees(department_id);
-```
-
----
-
-# Join Types in Data Engineering
-
-| Use Case | Join Type |
-|---|---|
-| Fact + Dimension Tables | INNER JOIN |
-| Preserve incomplete records | LEFT JOIN |
-| Data Validation | FULL OUTER JOIN |
-| Hierarchies | SELF JOIN |
-| Combinations | CROSS JOIN |
-
----
-
-# Joins in Data Warehousing
-
-Very common architecture:
-
----
-
-# Fact Table
-
-Contains:
-- transactions
-- metrics
-- events
-
----
-
-# Dimension Tables
-
-Contains:
-- customer info
-- product details
-- region info
-
----
-
-# Example
-
-```text
-sales_fact
-    JOIN
-customer_dimension
-```
-
-This is foundational for analytics systems.
-
----
-
-# Real-World Example
-
----
-
-# E-Commerce Pipeline
-
-Tables:
-- orders
-- customers
-- products
-- payments
-- shipping
-
-Joins combine them into:
-- dashboards
-- reports
-- KPIs
-- business analytics
-
----
-
-# SQL Join Interview Questions
-
-Common interview topics:
-
-1. Difference between INNER and LEFT JOIN
-2. Explain FULL OUTER JOIN
-3. What causes duplicate rows?
-4. How do joins affect performance?
-5. What is Cartesian product?
-6. Explain SELF JOIN
-7. How does NULL behave in joins?
-8. Difference between ON vs WHERE in joins
-9. How to optimize joins
-10. Star schema joins
-
----
-
-# Best Practices
-
----
-
-# Use Explicit JOIN Syntax
-
-Prefer:
-
-```sql
-FROM employees e
-INNER JOIN departments d
-ON e.department_id = d.department_id
-```
-
-Avoid old implicit syntax.
-
----
-
-# Select Required Columns Only
-
-Bad:
-
-```sql
-SELECT *
-```
-
-Good:
-
-```sql
-SELECT e.name, d.department_name
-```
-
----
-
-# Validate Row Counts
-
-After joins:
-- check duplicates
-- verify totals
-- validate metrics
-
-Critical in production pipelines.
-
----
-
-# Use Proper Aliases
-
-Improves readability for large queries.
-
----
-
-# Summary
-
-SQL Joins are foundational for relational data processing.
-
-Core concepts covered:
-- INNER JOIN
-- LEFT JOIN
-- RIGHT JOIN
-- FULL OUTER JOIN
-- CROSS JOIN
-- SELF JOIN
-- NULL behavior
-- Join optimization
-- Real-world usage
-
-Mastering joins is essential before moving to:
-- window functions
-- advanced analytics
-- Spark SQL
-- distributed query engines
-- data warehousing
-- large-scale ETL systems
+## My Implementation
+→ See companion file: [`joins.sql`](./joins.sql)
+→ Schema used: TechMart — run [`00_techmart_setup.sql`](./00_techmart_setup.sql) first
+→ Projects using this: [InternIQ](https://github.com/RenoX23/interniq-multiagent-analyst) — multi-table joins across jobs, skills, companies
